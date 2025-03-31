@@ -22,22 +22,21 @@ def get_tuning_data(url, stage_name=None):
     selected_id = None
 
     if stage_map:
-        # Tabs exist, use selected or first
         selected_id = stage_map.get(stage_name) if stage_name else list(stage_map.values())[0]
         stage_keys = list(stage_map.keys())
     else:
-        # No tabs, fallback to active stage pane
+        # Fallback to default active stage (no tabs)
         tab_content = soup.find("div", class_="tab-content")
         active_pane = tab_content.find("div", class_="tab-pane active") if tab_content else None
         if active_pane:
             selected_id = active_pane.get("id")
             stage_keys = ["Default"]
         else:
-            return None, [], "Could not find any visible tuning stage."
+            return None, [], "❌ Could not find any visible tuning stage."
 
     stage_div = soup.find("div", {"id": selected_id})
     if not stage_div:
-        return None, stage_keys, f"Could not find content for stage: {selected_id}"
+        return None, stage_keys, f"❌ Could not find content for stage: {selected_id}"
 
     values = stage_div.select("table tbody td")
     texts = [v.get_text(strip=True).replace("+", "").replace("hk", "").replace("Nm", "") for v in values]
@@ -53,25 +52,8 @@ def get_tuning_data(url, stage_name=None):
         }
         return data, stage_keys, None
 
-    return None, stage_keys, "Could not extract hk/Nm values."
+    return None, stage_keys, "❌ Could not extract hk/Nm values."
 
-
-    # Extract hk and Nm values
-    values = stage_div.select("table tbody td")
-    texts = [v.get_text(strip=True).replace("+", "").replace("hk", "").replace("Nm", "") for v in values]
-
-    hk_vals = [int(s.split()[0]) for s in texts if "hk" in s.lower()]
-    nm_vals = [int(s.split()[0]) for s in texts if "nm" in s.lower()]
-
-    if len(hk_vals) >= 3 and len(nm_vals) >= 3:
-        data = {
-            "Original": {"hk": hk_vals[0], "Nm": nm_vals[0]},
-            "Tuned": {"hk": hk_vals[1], "Nm": nm_vals[1]},
-            "Increase": {"hk": hk_vals[2], "Nm": nm_vals[2]},
-        }
-        return data, stage_keys, None
-
-    return None, stage_keys, "Could not extract all tuning data."
 
 # --------------- Plot Dyno Chart -------------------
 def plot_dyno(data):
@@ -101,7 +83,7 @@ def plot_dyno(data):
             zorder=-10
         )
     except FileNotFoundError:
-        pass  # No logo found — skip
+        pass  # Skip logo if not found
 
     ax1.plot(rpm_smooth, smooth(hk_orig), color='deepskyblue', label='Original HK', linewidth=2)
     ax1.plot(rpm_smooth, smooth(hk_tuned), color='red', label='Tuned HK', linewidth=2)
@@ -131,10 +113,11 @@ def plot_dyno(data):
     plt.close()
     return buf
 
+
 # --------------- Streamlit UI -------------------
 st.set_page_config(page_title="AK Dyno Chart Generator", layout="centered")
 st.title("🧰 AK Performance – Dyno Chart Generator")
-st.caption("Paste an AK Performance tuning URL to generate a dyno chart.")
+st.caption("Klistra in en AK Performance tuninglänk för att generera en dynokarta.")
 
 url = st.text_input("🔗 AK Performance Tuning URL")
 
@@ -144,22 +127,20 @@ if url:
     if error:
         st.warning(error)
 
+    selected_stage = "Default"
     if stages and len(stages) > 1:
         selected_stage = st.selectbox("🎛 Välj tuning stage", stages)
         data, _, error = get_tuning_data(url, stage_name=selected_stage)
-        if data:
-            st.success(f"✅ Data för {selected_stage}")
-    elif data:
-        selected_stage = "Default"
-        st.success(f"✅ Data för {selected_stage}")
 
     if data:
+        st.success(f"✅ Tuningdata hämtad ({selected_stage})")
         st.json(data)
+
         chart_buf = plot_dyno(data)
         st.image(chart_buf, caption="Dyno Chart", use_column_width=True)
+
         st.download_button("📥 Ladda ner dynokarta (PNG)", chart_buf, file_name="dyno_chart.png")
 
-        # Export CSV
         df = pd.DataFrame({
             "RPM": [1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000],
             "Original HK": np.array([0.2, 0.45, 0.65, 0.8, 0.9, 1.0, 0.95, 0.85]) * data["Original"]["hk"],

@@ -14,12 +14,12 @@ def get_tuning_data(url, stage_name=None):
     headers = {"User-Agent": "Mozilla/5.0"}
     r = requests.get(url, headers=headers)
     soup = BeautifulSoup(r.text, "html.parser")
-with open("debug.html", "w", encoding="utf-8") as f:
-    f.write(soup.prettify())
 
+    # TEMP: Save HTML for debugging
+    with open("debug.html", "w", encoding="utf-8") as f:
+        f.write(soup.prettify())
 
-
-    # Try to detect stage tabs
+    # Your scraping logic continues here ↓
     stage_tabs = soup.select("ul#stageTabs li a")
     stage_map = {tab.text.strip(): tab["href"].strip("#") for tab in stage_tabs}
 
@@ -29,7 +29,6 @@ with open("debug.html", "w", encoding="utf-8") as f:
         selected_id = stage_map.get(stage_name) if stage_name else list(stage_map.values())[0]
         stage_keys = list(stage_map.keys())
     else:
-        # Fallback to default active stage (no tabs)
         tab_content = soup.find("div", class_="tab-content")
         active_pane = tab_content.find("div", class_="tab-pane active") if tab_content else None
         if active_pane:

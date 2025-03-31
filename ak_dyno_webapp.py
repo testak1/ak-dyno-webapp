@@ -14,8 +14,9 @@ def get_tuning_data(url, stage_name=None):
     headers = {"User-Agent": "Mozilla/5.0"}
     r = requests.get(url, headers=headers)
     soup = BeautifulSoup(r.text, "html.parser")
-    with open("debug.html", "w", encoding="utf-8") as f:
+with open("debug.html", "w", encoding="utf-8") as f:
     f.write(soup.prettify())
+
 
 
     # Try to detect stage tabs

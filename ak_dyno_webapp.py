@@ -10,34 +10,37 @@ import io
 
 # --------------- Extract tuning data from AK Performance -------------------
 @st.cache_data
-def get_tuning_data(url, stage_name=None):
+def get_tuning_data(url):
     headers = {"User-Agent": "Mozilla/5.0"}
     r = requests.get(url, headers=headers)
     soup = BeautifulSoup(r.text, "html.parser")
 
-    # Try to detect stage tabs (multi-stage view)
-    stage_tabs = soup.select("ul#stageTabs li a")
-    stage_map = {tab.text.strip(): tab["href"].strip("#") for tab in stage_tabs}
+    # Try to find the active/visible stage (first visible .tab-pane.active)
+    tab_content = soup.find("div", class_="tab-content")
+    if not tab_content:
+        return None, [], "Could not find tab content."
 
-    selected_id = None
+    active_stage = tab_content.find("div", class_="tab-pane active")
+    if not active_stage:
+        return None, [], "Could not find active tuning stage."
 
-    if stage_map:
-        # If tabs exist, use the selected stage or default to first
-        selected_id = stage_map.get(stage_name) if stage_name else list(stage_map.values())[0]
-        stage_keys = list(stage_map.keys())
-    else:
-        # No tabs found – fall back to default visible stage
-        tab_content = soup.find("div", class_="tab-content")
-        active_pane = tab_content.find("div", class_="tab-pane active") if tab_content else None
-        if active_pane:
-            selected_id = active_pane.get("id")
-            stage_keys = ["Default"]
-        else:
-            return None, [], "Could not find any visible tuning stage."
+    # Extract td elements from tuning table
+    values = active_stage.select("table tbody td")
+    texts = [v.get_text(strip=True).replace("+", "").replace("hk", "").replace("Nm", "") for v in values]
 
-    stage_div = soup.find("div", {"id": selected_id})
-    if not stage_div:
-        return None, stage_keys, f"Could not find content for stage: {selected_id}"
+    # Extract horsepower and torque numbers
+    hk_vals = [int(s.split()[0]) for s in texts if "hk" in s.lower()]
+    nm_vals = [int(s.split()[0]) for s in texts if "nm" in s.lower()]
+
+    if len(hk_vals) >= 3 and len(nm_vals) >= 3:
+        data = {
+            "Original": {"hk": hk_vals[0], "Nm": nm_vals[0]},
+            "Tuned": {"hk": hk_vals[1], "Nm": nm_vals[1]},
+            "Increase": {"hk": hk_vals[2], "Nm": nm_vals[2]},
+        }
+        return data, ["Stage 1"], None
+
+    return None, [], "Could not extract hk/Nm values."
 
     # Extract hk and Nm values
     values = stage_div.select("table tbody td")

@@ -125,26 +125,20 @@ st.caption("Paste an AK Performance tuning URL to generate a dyno chart.")
 url = st.text_input("🔗 AK Performance Tuning URL")
 
 if url:
-    data, stages, error = get_tuning_data(url)
+    data, _, error = get_tuning_data(url)
+
     if error:
         st.warning(error)
 
-    if stages:
-        selected_stage = st.selectbox("🎛 Välj tuning stage", stages)
-        data, _, error = get_tuning_data(url, stage_name=selected_stage)
-
     if data:
-        st.success(f"✅ Extracted data for {selected_stage}")
+        st.success("✅ Tuning data extracted (Stage 1)")
         st.json(data)
 
-        # Plot and show chart
         chart_buf = plot_dyno(data)
         st.image(chart_buf, caption="Dyno Chart", use_column_width=True)
 
-        # Download buttons
         st.download_button("📥 Ladda ner dynokarta (PNG)", chart_buf, file_name="dyno_chart.png")
 
-        # Export CSV
         df = pd.DataFrame({
             "RPM": [1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000],
             "Original HK": np.array([0.2, 0.45, 0.65, 0.8, 0.9, 1.0, 0.95, 0.85]) * data["Original"]["hk"],
